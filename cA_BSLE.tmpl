@@ -1,0 +1,63 @@
+(function( obj, $, undefined ) {
+  //Private Properties assigned with `var =`
+  //Public Properties assigned with `obj.`
+
+  /**
+   * Plugin helpers
+   */
+
+   //Returns a property.
+   obj.prop = function(property, type)
+   {
+     if(typeof property !== "string") { console.error("Error in getProp: property should be of type string. Type is " + typeof property); }
+     if(typeof type !== "string") { console.error("Error in getProp: type should be of type string. Type is " + typeof type); }
+
+     var preStr = "ptplugin[{{p.id}}].settings[0].option[";  /* Concat with necessary var */  var endStr = '].value';
+     var val = getKrValue(preStr+property+endStr, type);
+     return val;
+   }
+
+   //Returns an instance of the pano.
+   function pano() {
+     return document.getElementById("krpanoSWFObject");
+   }
+
+   //Tests if we've asked to log scene views
+   if(obj.prop('logSceneViews', 'bool'))
+   {
+     //Gets the existing function stored for the onnewpano action.
+     var preFunc = krpano.get('events.onnewpano');
+     krpano.set('events.onnewpano', function() {
+       var sceneID = krpano.get('xml.scene');
+       var sceneTitleID = krpano.get('scene['+sceneID+'].titleid');
+       var sceneName = ktools.I18N.getInstance().getMessage(sceneTitleID);
+       window.cA.scene(sceneName, '{{project.description.name}}');
+       if(typeof preFunc == 'function')
+       {
+         preFunc(this, arguments);
+       }
+     });
+   }
+
+   /**
+   * Log an event to Google Analytics
+   * @author cdeckers
+   * @version 0.1
+   * @date    2016-12-14
+   * @param   {String}   name Name / Category of the event to log.
+   * @param   {String}   data Unique content to log for the event category.
+   * @return  {Boolean}        Returns whether function completed successfully.
+   */
+  obj.event = function(name, data)
+  {
+    console.log('Event name: ' + name + '; Event data: ' + data);
+  }
+
+  obj.scene = function(scene, tour)
+  {
+    console.log('Logging scene view as: ' + tour + '/' + scene);
+  }
+
+}( window.cA = window.cA || {}, jQuery))
+
+window.cA.event("tour_start", '{{project.description.name}}');

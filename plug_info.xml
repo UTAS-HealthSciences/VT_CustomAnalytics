@@ -1,0 +1,42 @@
+<plugin id="UTAS_PTPPlugin_CustomAnalytics"
+        category="tr:UTAS"
+        name="tr:Custom Analytics"
+        version="0.1"
+        isGraphical="false"
+        multipleInstance="false"
+        description="tr:Allows you to record custom events and submit to your Google Analytics account."
+        author="Connor Deckers (cdeckers) 2016"
+        authorUrl="connor.deckers@utas.edu.au">
+
+        <parameters>
+          <group id="g_trackerSettings" name="tr: Tracker Settings">
+            <row id="r_trackerID">
+              <string id="trackerID" name="tr: Tracker ID" default="UA-XXXXX-Y" />
+            </row>
+            <row id="r_sceneViewLogging">
+              <bool id="logSceneViews" name="tr: Log scene views?" default="true" />
+            </row>
+          </group>
+
+          <advanced id="advancedParams">
+            <group id="debug" name="tr: Debugging">
+              <row id="rDebug">
+                <bool id="consoleLog" name="tr: Log to console" details="tr: Log information to console during use." default="true" />
+              </row>
+            </group>
+          </advanced>
+        </parameters>
+
+        <templates>
+            <template url="cA.tmpl" />
+            <template url="cA_BS.tmpl"  type="jsbootstrap" />
+            <template url="cA_BSLE.tmpl" type="jsbootstraploaded" />
+        </templates>
+
+        <actions>
+      		<action id="logEvent" name="tr:Log Event" description="tr:Logs an event to Google Analytics" callTemplate="cA_LogEvent.tmpl">
+            <string id="eventName" name="tr: Type" description="tr: The type of the event to send. Typical uses may include `click`, `view` and `video`." customize="true" />
+            <string id="eventValue" name="tr: Value" description="tr: The information the send with the event. This is the description of this unique event in particular." customize="true"/>
+          </action>
+      	</actions>
+</plugin>

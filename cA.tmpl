@@ -1,0 +1,12 @@
+<ptplugin name="{{p.id}}" engine="CustomAnalytics">
+	<settings>
+		<option name="consoleLog" value="{{ p.consoleLog.value }}" type="bool" />
+
+    <option name="trackerID" value="{{p.trackerID.value}}" type="string" />
+    <option name="logSceneViews" value="{{p.logSceneViews.value}}" type="bool" />
+	</settings>
+</ptplugin>
+
+<action name="logEvent_{{p.id}}" type="Javascript" autorun=""><![CDATA[
+  window.cA.event(args[1], args[2]);
+]]></action>

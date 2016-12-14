@@ -1,0 +1,3 @@
+{%if action.plugin %}
+  logEvent_{{action.plugin.id}}({{action.eventName.value}}, {{action.eventValue.value}});
+{%endif%}
