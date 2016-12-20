@@ -22,22 +22,16 @@
      return document.getElementById("krpanoSWFObject");
    }
 
-   //Tests if we've asked to log scene views
-   if(obj.prop('logSceneViews', 'bool'))
-   {
-     //Gets the existing function stored for the onnewpano action.
-     var preFunc = krpano.get('events.onnewpano');
-     krpano.set('events.onnewpano', function() {
-       var sceneID = krpano.get('xml.scene');
-       var sceneTitleID = krpano.get('scene['+sceneID+'].titleid');
-       var sceneName = ktools.I18N.getInstance().getMessage(sceneTitleID);
-       window.cA.scene(sceneName, '{{project.description.name}}');
-       if(typeof preFunc == 'function')
-       {
-         preFunc(this, arguments);
+    $(document).on("pano_onnewpano", function() {
+      //Tests if we've asked to log scene views
+      if(obj.prop('logSceneViews', 'bool'))
+      {
+         var sceneID = krpano.get('xml.scene');
+         var sceneTitleID = krpano.get('scene['+sceneID+'].titleid');
+         var sceneName = ktools.I18N.getInstance().getMessage(sceneTitleID);
+         window.cA.scene(sceneName, '{{project.description.name}}');
        }
-     });
-   }
+    });
 
    /**
    * Log an event to Google Analytics
@@ -58,6 +52,17 @@
     console.log('Logging scene view as: ' + tour + '/' + scene);
   }
 
+  obj.url = function()
+  {
+    //return the URL.
+  }
+
 }( window.cA = window.cA || {}, jQuery))
 
 window.cA.event("tour_start", '{{project.description.name}}');
+
+$(document).on('pano_showtourcontrols pano_hidetourcontrols', function(event)
+{
+  console.log(event);
+});
+console.log("{{pluginsDirectory}}");

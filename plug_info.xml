@@ -28,9 +28,9 @@
         </parameters>
 
         <templates>
-            <template url="cA.tmpl" />
-            <template url="cA_BS.tmpl"  type="jsbootstrap" />
-            <template url="cA_BSLE.tmpl" type="jsbootstraploaded" />
+          <template url="cA.tmpl" />
+          <template url="cA_BS.tmpl"  type="jsbootstrap" />
+          <template url="cA_BSLE.tmpl" type="jsbootstraploaded" />
         </templates>
 
         <actions>
