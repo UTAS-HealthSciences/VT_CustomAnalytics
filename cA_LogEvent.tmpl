@@ -1,3 +1,9 @@
 {%if action.plugin %}
-  logEvent_{{action.plugin.id}}({{action.eventName.value}}, {{action.eventValue.value}});
+  set(eventCategoryText, "{{action.eventCategory.value}}");
+  set(eventActionText, "{{action.eventAction.value}}");
+  set(eventLabelText, "{{action.eventLabel.value}}");
+  set(parentHotspot, "{{action.eventCategory.messageid|lower}}");
+  txtsplit(parentHotspot, "|", parentHotspot, garbageVar);
+  txtreplace(parentHotspot, '{{action.plugin.id|lower}}', '');
+  logEvent_{{action.plugin.id}}(get(eventCategoryText), get(eventActionText), get(eventLabelText), get(parentHotspot));
 {%endif%}

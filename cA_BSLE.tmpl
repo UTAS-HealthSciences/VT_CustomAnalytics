@@ -17,21 +17,70 @@
      return val;
    }
 
+   function _construct() {
+     var trackerID = obj.prop("trackerID", "string").trim();
+     if(trackerID == "" || trackerID == "UA-XXXXX-Y")
+     {
+       console.error("Invalid tracking ID: " + trackerID);
+       return false;
+     }
+
+     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+       (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+     })(window,document,'script','https://www.google-analytics.com/analytics.js','tracker');
+
+     tracker('create', trackerID, 'auto');
+     // tracker('send', 'pageview');
+     return true;
+   }
+   var success = _construct();
+
    //Returns an instance of the pano.
    function pano() {
      return document.getElementById("krpanoSWFObject");
    }
 
-    $(document).on("pano_onnewpano", function() {
+   /**
+    * Hooks into the new pano event, and logs scene view if applicable.
+    */
+   $(document).on("pano_onnewpano", function() {
       //Tests if we've asked to log scene views
       if(obj.prop('logSceneViews', 'bool'))
       {
-         var sceneID = krpano.get('xml.scene');
-         var sceneTitleID = krpano.get('scene['+sceneID+'].titleid');
-         var sceneName = ktools.I18N.getInstance().getMessage(sceneTitleID);
-         window.cA.scene(sceneName, '{{project.description.name}}');
-       }
+        //Log a scene view with our URL returning function.
+         window.cA.scene(obj.url());
+      }
     });
+
+    /**
+     * Returns the name of the current scene.
+     * @author cdeckers
+     * @version 0.1
+     * @date    2016-12-20
+     * @param   {bool}     urlfriendly Should the output be returned as a URL-friendly string?
+     * @return  {string}   Name of the current scene.
+     */
+    function getSceneName(urlfriendly)
+    {
+      var sceneID = krpano.get('xml.scene');
+      var sceneTitleID = krpano.get('scene['+sceneID+'].titleid');
+      var sceneName = ktools.I18N.getInstance().getMessage(sceneTitleID);
+      return urlfriendly ? encodeURIComponent(sceneName) : sceneName;
+    }
+
+    /**
+     * Returns the project description name from the tour. This results in the Project name.
+     * @author cdeckers
+     * @version 0.1
+     * @date    2016-12-20
+     * @param   {bool}     urlfriendly Should the output be returned as a URL-friendly string?
+     * @return  {String}   Name of the tour.
+     */
+    function getTourName(urlfriendly)
+    {
+      return urlfriendly ? encodeURIComponent('{{project.description.name}}') : '{{project.description.name}}';
+    }
 
    /**
    * Log an event to Google Analytics
@@ -42,27 +91,77 @@
    * @param   {String}   data Unique content to log for the event category.
    * @return  {Boolean}        Returns whether function completed successfully.
    */
-  obj.event = function(name, data)
+   obj.event = function(category, action, label, value)
+   {
+     if(!success) return false;
+     if(typeof value != "number") {value = 0;}
+
+     tracker('set', {
+       title: getSceneName() + " (" + getTourName() + ")",
+       page: obj.url(),
+     });
+
+     tracker('send', {
+       hitType: 'event',
+       eventCategory: category,
+       eventAction: action,
+       eventLabel: label,
+       eventValue: Math.round(value),
+     })
+   }
+
+  /**
+   * Log a `scene-view` event to Google Analytics
+   * @author cdeckers
+   * @version 0.1
+   * @date    2016-12-20
+   * @param   {String}   url Submit a path string to the function. Recommended use: <obj>.url()
+   * @return  {void}       Returns nothing.
+   */
+  obj.scene = function(url)
   {
-    console.log('Event name: ' + name + '; Event data: ' + data);
+    if(!success) return false;
+    tracker('set', {
+      title: getSceneName() + " (" + getTourName() + ")",
+      page: obj.url(),
+    });
+
+    tracker('send', 'pageview');
   }
 
-  obj.scene = function(scene, tour)
-  {
-    console.log('Logging scene view as: ' + tour + '/' + scene);
-  }
-
+  /**
+   * Returns a formatted URL path; Built `/{project name}/{scenename}`
+   * @author cdeckers
+   * @version 0.1
+   * @date    2016-12-20
+   * @return  {String}   Returns formatted string; Built `/{project name}/{scenename}`
+   */
   obj.url = function()
   {
-    //return the URL.
+    var path = "/" + getTourName(false) + "/" + getSceneName(false);
+    return path;
   }
 
-}( window.cA = window.cA || {}, jQuery))
+  obj.tourview = function()
+  {
+    if(!success) return false;
+    tracker('send', {
+      hitType: 'pageview',
+      title: getTourName(),
+      page: "/" + getTourName(false) + "/",
+    });
+  }
 
-window.cA.event("tour_start", '{{project.description.name}}');
+  if(success)
+  {
+    obj.tourview();
+    obj.event("Tour Info", 'start', '{{project.description.name}}');
+  }
 
-$(document).on('pano_showtourcontrols pano_hidetourcontrols', function(event)
-{
-  console.log(event);
+}( window.cA = window.cA || {}, jQuery));
+
+$(window.cA).on('logEvent', function(event, args) {
+  var tooltip = ktools.I18N.getInstance().getMessage(krpano.get('hotspot['+args.parent+'].tooltip'));
+  var text = args.data.label.trim();
+  window.cA.event(args.data.category, args.data.action, text.length > 0 ? text : tooltip);
 });
-console.log("{{pluginsDirectory}}");
