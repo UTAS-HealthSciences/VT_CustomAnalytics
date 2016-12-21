@@ -35,8 +35,9 @@
 
         <actions>
       		<action id="logEvent" name="tr:Log Event" description="tr:Logs an event to Google Analytics" callTemplate="cA_LogEvent.tmpl">
-            <string id="eventName" name="tr: Type" description="tr: The type of the event to send. Typical uses may include `click`, `view` and `video`." customize="true" />
-            <string id="eventValue" name="tr: Value" description="tr: The information the send with the event. This is the description of this unique event in particular." customize="true"/>
+            <string id="eventCategory" name="tr: Category" description="tr: The type of event this is. May include `info`, `video`, `gallery`, etc." customize="true" />
+            <string id="eventAction" name="tr: Action" description="tr: The type of the event to send. Typical uses may include `click`, `view` and `video`." customize="true" />
+            <string id="eventLabel" name="tr: Label" description="tr: The information the send with the event. This is the description of this unique event in particular." customize="true"/>
           </action>
       	</actions>
 </plugin>
