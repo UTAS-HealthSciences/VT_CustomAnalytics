@@ -1,14 +1,15 @@
 <ptplugin name="{{p.id}}" engine="CustomAnalytics">
 	<settings>
-		<option name="consoleLog" value="{{ p.consoleLog.value }}" type="bool" />
-
-    <option name="trackerID" value="{{p.trackerID.value}}" type="string" />
-    <option name="logSceneViews" value="{{p.logSceneViews.value}}" type="bool" />
+		<option name="consoleLog" value="{{ p.consoleLog.value }}" type="bool" /> <!-- Log events to the console. -->
+    <option name="trackerID" value="{{p.trackerID.value}}" type="string" /> <!-- The gA tracker ID -->
+    <option name="logSceneViews" value="{{p.logSceneViews.value}}" type="bool" /> <!-- Toggle whether new scenes should be logged. -->
 	</settings>
 </ptplugin>
 
+<!-- krpano action to log event. It can be attached to krpano events, such as hotspot actions. -->
+<!-- This is currently used in the action templates, which can be attached to hotspots through the Panotour interface. -->
 <action name="logEvent_{{p.id}}" type="Javascript" autorun=""><![CDATA[
-	var label = args[3];
-	if(label.charAt(0) == '"' && label.charAt(label.length-1) == '"') { label = label.slice(1,-1); }
-	$(window.cA).trigger('logEvent', {'pid': '{{p.id}}', 'data': {'category': args[1], 'action': args[2], 'label': label}, 'parent': args[4]});
+	var label = args[3]; //<!-- Get the fourth argument passed to the function -->
+	if(label.charAt(0) == '"' && label.charAt(label.length-1) == '"') { label = label.slice(1,-1); } //<!-- If the label is wrapped in double quotes, remove them. -->
+	$(window.cA).trigger('logEvent', {'pid': '{{p.id}}', 'data': {'category': args[1], 'action': args[2], 'label': label}, 'parent': args[4]}); //<!-- Trigger our logEvent event with the data we've received.
 ]]></action>

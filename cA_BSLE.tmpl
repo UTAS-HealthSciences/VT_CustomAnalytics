@@ -2,13 +2,15 @@
   //Private Properties assigned with `var =`
   //Public Properties assigned with `obj.`
 
-  /**
-   * Plugin helpers
-   */
+   // Check if the client ID has been recorded for further use.
+   var trackerIDset = false;
+   // The gA client ID
+   var clientID = '';
 
    //Returns a property.
    obj.prop = function(property, type)
    {
+     //Error testing to ensure properties are correctly set.
      if(typeof property !== "string") { console.error("Error in getProp: property should be of type string. Type is " + typeof property); }
      if(typeof type !== "string") { console.error("Error in getProp: type should be of type string. Type is " + typeof type); }
 
@@ -17,26 +19,42 @@
      return val;
    }
 
+   // 'construct' function that's called in our plugin manager, if it exists.
    function _construct() {
+     //Get the tracker ID from our settings file.
      var trackerID = obj.prop("trackerID", "string").trim();
+
+     //If the tracker ID is either empty or the default string, log an error and close.
      if(trackerID == "" || trackerID == "UA-XXXXX-Y")
      {
        console.error("Invalid tracking ID: " + trackerID);
        return false;
      }
 
+     //Async function that loads in the Google Analytics code.
      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
      })(window,document,'script','https://www.google-analytics.com/analytics.js','tracker');
 
+     //Create a tracker with our received Tracker ID.
      tracker('create', trackerID, 'auto');
-     // tracker('send', 'pageview');
+
+     //When the tracker is ready, set our custom dimension[1] to contain the client ID, making it accessible to our Analytics reports.
+     tracker(function(t) {
+       //Set the custom dimension (UUID) to be sent with every call.
+       tracker('set','dimension1',t.get('clientId'));
+       //Set our client ID for further use.
+       clientID = t.get('clientId');
+       //Register that we have set our client ID.
+       trackerIDset = true;
+     });
      return true;
    }
+   //Tests whether our tracker was set up successfully.
    var success = _construct();
 
-   //Returns an instance of the pano.
+   //Returns an instance of the krpano object.
    function pano() {
      return document.getElementById("krpanoSWFObject");
    }
@@ -65,7 +83,7 @@
     {
       var sceneID = krpano.get('xml.scene');
       var sceneTitleID = krpano.get('scene['+sceneID+'].titleid');
-      var sceneName = ktools.I18N.getInstance().getMessage(sceneTitleID);
+      var sceneName = (ktools.I18N.getInstance().getMessage(sceneTitleID)).replace("&", "and");
       return urlfriendly ? encodeURIComponent(sceneName) : sceneName;
     }
 
@@ -79,7 +97,8 @@
      */
     function getTourName(urlfriendly)
     {
-      return urlfriendly ? encodeURIComponent('{{project.description.name}}') : '{{project.description.name}}';
+      var name = '{{project.description.name}}'.replace("&", "and");
+      return urlfriendly ? encodeURIComponent(name) : name;
     }
 
    /**
@@ -91,23 +110,43 @@
    * @param   {String}   data Unique content to log for the event category.
    * @return  {Boolean}        Returns whether function completed successfully.
    */
-   obj.event = function(category, action, label, value)
+   obj.event = function(category, action, label, projectEvent, data)
    {
+     //If the tracker didn't start successfully, close our function call immediately.
      if(!success) return false;
-     if(typeof value != "number") {value = 0;}
 
-     tracker('set', {
-       title: getSceneName() + " (" + getTourName() + ")",
-       page: obj.url(),
-     });
+     //If our data arg wasn't passed, then set it to be an empty object.
+     if(typeof data == 'undefined')
+     {
+       data = {};
+     }
 
-     tracker('send', {
-       hitType: 'event',
-       eventCategory: category,
-       eventAction: action,
-       eventLabel: label,
-       eventValue: Math.round(value),
-     })
+     var trackerSettings = {
+       title: getSceneName() + " (" + getTourName() + ")", //The page title. Currently `Scene name (Tour name)`
+       page: obj.url(true), // The current 'page'. Currently `tour_url/scene-name`
+       'dimension1': clientID, // Ensures that the UUID is sent with /every/ data submission.
+     }
+
+     //If this is a project event
+     if(projectEvent) {
+       trackerSettings.title = getSceneName(); //Set the scene name without the Tour name at the end.
+       trackerSettings.page = obj.url(false); //The page is just the tour, without the scene name appended on the end.
+     }
+
+     //Set the tracker settings with our above object.
+     tracker('set', trackerSettings);
+
+     //Set our unique event data.
+     var trkobj = {
+       hitType: 'event',        //Event type
+       eventCategory: category, //Category
+       eventAction: action,     //Action
+       eventLabel: label,       //Label
+     }
+     //Extend with any data we may have passed (would include custom metrics!).
+     trkobj = $.extend(trkobj, data);
+     //Send event to Google Analytics.
+     tracker('send', trkobj);
    }
 
   /**
@@ -120,12 +159,24 @@
    */
   obj.scene = function(url)
   {
-    if(!success) return false;
-    tracker('set', {
-      title: getSceneName() + " (" + getTourName() + ")",
-      page: obj.url(),
-    });
+    //If the Client ID hasn't been set yet
+    if(!trackerIDset) {
+      //Check again in 250ms.
+      setTimeout(function() {obj.scene(url);}, 250);
+      //Close our function, so that it doesn't continue if the Client ID is unset.
+      return false;
+    }
 
+    //If the tracker was unsuccessfully created, end the function.
+    if(!success) return false;
+
+    //Set the trackers information.
+    tracker('set', {
+      title: getSceneName() + " (" + getTourName() + ")", //The page title. Currently `Scene name (Tour name)`
+      page: obj.url(), // The current 'page'. Currently `tour_url/scene-name`
+      'dimension1': clientID, // Ensures that the UUID is sent with /every/ data submission.
+    });
+    //Send a pageview to Google Analytics.
     tracker('send', 'pageview');
   }
 
@@ -136,32 +187,86 @@
    * @date    2016-12-20
    * @return  {String}   Returns formatted string; Built `/{project name}/{scenename}`
    */
-  obj.url = function()
+  obj.url = function(withScene)
   {
-    var path = "/" + getTourName(false) + "/" + getSceneName(false);
+    var path = "/" + getTourName(false) + "/";
+    if(withScene) { path = path + getSceneName(false); }
     return path;
   }
 
+  //Sends the first tourview as a custom pageview
   obj.tourview = function()
   {
+
+    //If the Client ID hasn't been set yet
+    if(!trackerIDset) {
+      //Check again in 250ms.
+      setTimeout(function() {obj.tourview();}, 250);
+      //Close our function, so that it doesn't continue if the Client ID is unset.
+      return false;
+    }
+
+    //If the tracker was unsuccessfully created, end the function.
     if(!success) return false;
+
     tracker('send', {
-      hitType: 'pageview',
-      title: getTourName(),
-      page: "/" + getTourName(false) + "/",
+      hitType: 'pageview', //Send a pageview
+      title: getTourName(), //Send just the Tour Name (we don't need to know our landing scene in the title).
+      page: "/" + getTourName(false) + "/", //Send just the tour name as the page URL.
+      'dimension1': clientID, //Send the UUID as the custom dimension.
     });
   }
 
+  //If the tracker was created successfully.
   if(success)
   {
-    obj.tourview();
-    obj.event("Tour Info", 'start', '{{project.description.name}}');
+    obj.tourview(); //Trigger a tourview pageview
+    obj.event("Tour Interactions", 'start', '{{project.description.name}}'); //Trigger a custom event that can be tracked later.
   }
-
 }( window.cA = window.cA || {}, jQuery));
 
+
+
 $(window.cA).on('logEvent', function(event, args) {
+
+  //Get the tooltip text from our hotspot, in case the text that was received is empty (to act as a default).
   var tooltip = ktools.I18N.getInstance().getMessage(krpano.get('hotspot['+args.parent+'].tooltip'));
+  //Trim and clean the text received from the event arguments.
   var text = args.data.label.trim();
+  //Create gA event with our information, including our scraped tooltip (if our text is empty).
   window.cA.event(args.data.category, args.data.action, text.length > 0 ? text : tooltip);
+});
+
+//When there's a custom analytics event called on our document handle instead.
+//This is used when the existence of our window.cA object cannot be confirmed.
+$(document).on('cA_event', function(event, data) {
+  //Is this a whole-project event, or a scene-specific one?
+  if(!data.hasOwnProperty('projectEvent')) { data.projectEvent = false; }
+  //Create gA event with our information.
+  window.cA.event(data.category,data.action,data.label,data.projectEvent, data.data);
+});
+
+$(document).on('pano_floorplanOpened', function() { //When the floorplan has been opened, listen for our event.
+  //Trigger the custom analytics event on our document element.
+  $(document).trigger('cA_event', {category: 'Tour Interactions', action: 'click', label: 'Open Floorplan', projectEvent: true});
+});
+
+$(document).on('pano_mapOpened', function() { //When the Google Maps element has been opened.
+  if(krpano.get('ptplugin[panotourmapsArea].isOpen')) //If the map is open (because the event is fired twice; once when clicked, and once when fully opened)
+  {
+    //Trigger the custom analytics event on our document element.
+    $(document).trigger('cA_event', {category: 'Tour Interactions', action: 'click', label: 'Open Map', projectEvent: true});
+  }
+});
+
+$(document).on('pano_ontourstart', function() { //When the tour starts
+  // Floorplan opening hook
+  var action = krpano.get('action[floorplanopentourfloorplan].content');
+  //Append our custom event hook to the end of the floorplan opened action.
+  krpano.set('action[floorplanopentourfloorplan].content', action + ' jsFireEvent("pano_floorplanOpened", "floorplan");\n');
+
+  // Google Maps opening hook
+  action = krpano.get('action[openKolorArea_panotourmapsArea].content');
+  //Append our custom event hook to the end of the Google Maps opened action.
+  krpano.set('action[openKolorArea_panotourmapsArea].content', action + ' jsFireEvent("pano_mapOpened", "floorplan");\n');
 });
